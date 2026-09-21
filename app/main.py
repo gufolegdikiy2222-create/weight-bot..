@@ -1,9 +1,10 @@
 import logging
+import os
 import sys
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
-from telegram import Bot, Update
+from telegram import Update
 from telegram.ext import (
     Application,
     CallbackQueryHandler,
@@ -37,18 +38,14 @@ settings = get_settings()
 
 
 def build_telegram_app() -> Application:
-    app = (
-        Application.builder()
-        .token(settings.telegram_bot_token)
-        .build()
-    )
+    app = Application.builder().token(settings.telegram_bot_token).build()
     app.add_handler(CommandHandler("start", start_handler))
     app.add_handler(CommandHandler("help", help_handler))
     app.add_handler(CommandHandler("status", status_handler))
     app.add_handler(CommandHandler("buy", buy_handler))
     app.add_handler(CallbackQueryHandler(buy_handler, pattern="^buy$"))
     app.add_handler(CallbackQueryHandler(info_callback, pattern="^info$"))
-    app.add_handler(MessageHandler(filters.TEXT & \~filters.COMMAND, message_handler))
+    app.add_handler(MessageHandler(filters.TEXT & (\~filters.COMMAND), message_handler))
     return app
 
 
@@ -62,11 +59,9 @@ async def lifespan(app: FastAPI):
     app.state.bot = tg_app.bot
     app.state.tg_app = tg_app
 
-    import os
-
     base = (settings.base_url or os.getenv("RENDER_EXTERNAL_URL") or "").rstrip("/")
     if not base:
-        logger.error("BASE_URL is empty — set BASE_URL or RENDER_EXTERNAL_URL")
+        logger.error("BASE_URL is empty")
         raise RuntimeError("BASE_URL is required")
     webhook_url = f"{base}/telegram/webhook"
     await tg_app.bot.set_webhook(
